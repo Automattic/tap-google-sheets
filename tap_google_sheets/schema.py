@@ -1,10 +1,10 @@
-import os
 import json
-import re
-import urllib.parse
+import os
 from collections import OrderedDict
+
 import singer
 from singer import metadata
+
 from tap_google_sheets.streams import STREAMS
 
 LOGGER = singer.get_logger()

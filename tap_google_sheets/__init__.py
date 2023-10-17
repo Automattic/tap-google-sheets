@@ -1,10 +1,10 @@
 #!/usr/bin/env python3
 
-import sys
 import json
-import argparse
+import sys
+
 import singer
-from singer import metadata, utils
+
 from tap_google_sheets.client import GoogleClient
 from tap_google_sheets.discover import discover
 from tap_google_sheets.sync import sync

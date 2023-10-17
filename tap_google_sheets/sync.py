@@ -1,16 +1,16 @@
-import time
-import math
 import json
-import re
-import urllib.parse
+import math
+import time
 from datetime import datetime, timedelta
+
 import pytz
 import singer
 from singer import metrics, metadata, Transformer, utils
-from singer.utils import strptime_to_utc, strftime
 from singer.messages import RecordMessage
-from tap_google_sheets.streams import STREAMS
+from singer.utils import strptime_to_utc, strftime
+
 from tap_google_sheets.schema import get_sheet_metadata
+from tap_google_sheets.streams import STREAMS
 
 LOGGER = singer.get_logger()
 

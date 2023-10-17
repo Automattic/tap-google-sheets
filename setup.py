@@ -9,11 +9,9 @@ setup(name='tap-google-sheets',
       classifiers=['Programming Language :: Python :: 3 :: Only'],
       py_modules=['tap_google_sheets'],
       install_requires=[
-          'backoff==1.8.0',
-          'singer-python==5.9.0',
-          'google-api-python-client==1.12.5',
-          'google-auth==1.23.0',
-          'google-auth-oauthlib==0.4.2',
+          'singer-python==5.13.0',
+          'google-api-python-client==2.104.0',
+          'google-auth-oauthlib==1.1.0',
       ],
       extras_require={
           'dev': [
