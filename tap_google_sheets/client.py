@@ -1,18 +1,16 @@
-from datetime import datetime, timedelta
-from collections import OrderedDict
-import backoff
-import singer
-import logging
-import pickle
 import json
 import os
-from singer import metrics
-from singer import utils
+import pickle
+
+import backoff
+import googleapiclient.discovery
+import singer
+from google.auth.transport.requests import Request
 from google.oauth2 import service_account
 from google_auth_oauthlib.flow import InstalledAppFlow
-from google.auth.transport.requests import Request
 from googleapiclient.errors import HttpError
-import googleapiclient.discovery
+from singer import metrics
+from singer import utils
 
 LOGGER = singer.get_logger()
 
