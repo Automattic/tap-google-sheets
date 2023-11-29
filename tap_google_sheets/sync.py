@@ -278,7 +278,7 @@ def transform_sheet_data(spreadsheet_id, sheet_id, sheet_title, from_row, column
                                     sheet_title, col_name, col_letter, row_num, col_type, value))
                         else:
                             col_val = str(value)
-                    # NUMBER (FLOAT)
+                    # NUMBER (INTEGER AND FLOAT)
                     elif col_type == 'numberType':
                         if isinstance(value, int):
                             col_val = int(value)
