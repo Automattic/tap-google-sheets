@@ -97,6 +97,7 @@ def get_sheet_schema_columns(sheet):
             column_effective_value = first_value.get('effectiveValue', {})
             column_effective_value_type = None
 
+            col_val = None
             if column_effective_value == {}:
                 if "numberFormat" in first_value.get('effectiveFormat', {}):
                     column_effective_value_type = "numberValue"
@@ -109,9 +110,11 @@ def get_sheet_schema_columns(sheet):
                 for key, val in column_effective_value.items():
                     if key in ('numberValue', 'stringValue', 'boolValue'):
                         column_effective_value_type = key
+                        col_val = str(val)
                     elif key in ('errorType', 'formulaType'):
-                        raise Exception('DATA TYPE ERROR 2ND ROW VALUE: SHEET: {}, COL: {}, CELL: {}2, TYPE: {}'.format(
-                            sheet_title, column_name, column_letter, key))
+                        col_val = str(val)
+                        raise Exception('DATA TYPE ERROR 2ND ROW VALUE: SHEET: {}, COL: {}, CELL: {}2, TYPE: {}, VALUE: {}'.format(
+                            sheet_title, column_name, column_letter, key, col_val))
 
             column_number_format = first_values[i].get('effectiveFormat', {}).get(
                 'numberFormat', {})
@@ -171,8 +174,8 @@ def get_sheet_schema_columns(sheet):
             else:
                 col_properties = {'type': ['null', 'string']}
                 column_gs_type = 'unsupportedValue'
-                LOGGER.info('WARNING: UNSUPPORTED 2ND ROW VALUE: SHEET: {}, COL: {}, CELL: {}2, TYPE: {}'.format(
-                        sheet_title, column_name, column_letter, column_effective_value_type))
+                LOGGER.info('WARNING: UNSUPPORTED 2ND ROW VALUE: SHEET: {}, COL: {}, CELL: {}2, TYPE: {}, VALUE: {}'.format(
+                        sheet_title, column_name, column_letter, column_effective_value_type, col_val))
                 LOGGER.info('Converting to string.')
         else: # if the column is to be skipped
             column_is_skipped = True
