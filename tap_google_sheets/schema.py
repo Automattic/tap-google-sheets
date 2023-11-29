@@ -29,7 +29,6 @@ def pad_default_effective_values(headers, first_values):
 # Create sheet_metadata_json with columns from sheet
 def get_sheet_schema_columns(sheet):
     sheet_title = sheet.get('properties', {}).get('title')
-    sheet_json_schema = OrderedDict()
     data = next(iter(sheet.get('data', [])), {})
     row_data = data.get('rowData', [])
     if row_data == [] or len(row_data) == 1:
@@ -70,6 +69,7 @@ def get_sheet_schema_columns(sheet):
     if not headers:
         LOGGER.warning('SKIPPING THE SHEET AS HEADERS ROW IS EMPTY. SHEET: {}'.format(sheet_title))
 
+
     # Read column headers until end or 2 consecutive skipped headers
     for header in headers:
         # LOGGER.info('header = {}'.format(json.dumps(header, indent=2, sort_keys=True)))
@@ -85,7 +85,6 @@ def get_sheet_schema_columns(sheet):
                     sheet_title, column_name, column_letter))
             header_list.append(column_name)
 
-            first_value = None
             try:
                 first_value = first_values[i]
             except IndexError as err:
@@ -117,6 +116,7 @@ def get_sheet_schema_columns(sheet):
             column_number_format = first_values[i].get('effectiveFormat', {}).get(
                 'numberFormat', {})
             column_number_format_type = column_number_format.get('type')
+            column_number_format_pattern = column_number_format.get('pattern')
 
             # Determine datatype for sheet_json_schema
             #
@@ -160,8 +160,12 @@ def get_sheet_schema_columns(sheet):
                     col_properties = {'type': ['null', 'string']}
                     column_gs_type = 'stringValue'
                 else:
-                    col_properties = {'type': ['null', 'number']}
-                    column_gs_type = 'numberType'
+                    if column_number_format_pattern == '0':
+                        col_properties = {'type': ['null', 'integer']}
+                        column_gs_type = 'numberType.INTEGER'
+                    else:
+                        col_properties = {'type': ['null', 'number']}
+                        column_gs_type = 'numberType'
             # Catch-all to deal with other types and set to string
             # column_effective_value_type: formulaValue, errorValue, or other
             else:
@@ -199,7 +203,6 @@ def get_sheet_schema_columns(sheet):
         else:
             # skipped < 2 prepare `columns` dictionary with index, letter, column name, column type and
             # if the column is to be skipped or not for each column in the list
-            column = {}
             column = {
                 'columnIndex': column_index,
                 'columnLetter': column_letter,
