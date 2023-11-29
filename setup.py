@@ -17,6 +17,7 @@ setup(name='tap-google-sheets',
           'dev': [
               'ipdb==0.11',
               'pylint',
+              'pytest',
               'nose'
           ]
       },
