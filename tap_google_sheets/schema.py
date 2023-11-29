@@ -157,8 +157,8 @@ def get_sheet_schema_columns(sheet):
                     col_properties = {'type': ['null', 'string']}
                     column_gs_type = 'stringValue'
                 elif column_number_format_type == 'CURRENCY':
-                    col_properties = {'type': ['null', 'string']}
-                    column_gs_type = 'stringValue'
+                    col_properties = {'type': ['null', 'number']}
+                    column_gs_type = 'numberType'
                 else:
                     if column_number_format_pattern == '0':
                         col_properties = {'type': ['null', 'integer']}

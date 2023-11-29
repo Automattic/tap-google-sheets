@@ -115,7 +115,7 @@ class TestNullCellFormat(unittest.TestCase):
         sheet = SHEET
         sheet["data"][0]["rowData"][1]["values"][0]["effectiveFormat"]["numberFormat"]["type"] = "CURRENCY"
 
-        expected_format = {"type": ["null", "string"]}
+        expected_format = {"type": ["null", "number"]}
 
         sheet_json_schema, columns = schema.get_sheet_schema_columns(sheet)
         returned_formats = sheet_json_schema["properties"]["Column1"]
