@@ -21,20 +21,27 @@ def colnum_string(num):
     return string
 
 
+def pad_default_effective_values(headers, first_values):
+    for i in range(len(headers) - len(first_values)):
+        first_values.append(OrderedDict())
+
+
 # Create sheet_metadata_json with columns from sheet
 def get_sheet_schema_columns(sheet):
     sheet_title = sheet.get('properties', {}).get('title')
-    sheet_json_schema = OrderedDict()
     data = next(iter(sheet.get('data', [])), {})
     row_data = data.get('rowData', [])
-    if row_data == []:
-        # Empty sheet, SKIP
+    if row_data == [] or len(row_data) == 1:
+        # Empty sheet or empty first row, SKIP
         LOGGER.info('SKIPPING Empty Sheet: {}'.format(sheet_title))
         return None, None
-    # spreadsheet is an OrderedDict, with orderd sheets and rows in the repsonse
+
+    # spreadsheet is an OrderedDict, with ordered sheets and rows in the response
     headers = row_data[0].get('values', [])
     first_values = row_data[1].get('values', [])
-    # LOGGER.info('first_values = {}'.format(json.dumps(first_values, indent=2, sort_keys=True)))
+    # Pad first row values with default if null
+    if len(first_values) < len(headers):
+        pad_default_effective_values(headers, first_values)
 
     sheet_json_schema = {
         'type': 'object',
@@ -57,13 +64,19 @@ def get_sheet_schema_columns(sheet):
     prior_header = None
     i = 0
     skipped = 0
+
+    # if no headers are present, log the message that sheet is skipped
+    if not headers:
+        LOGGER.warning('SKIPPING THE SHEET AS HEADERS ROW IS EMPTY. SHEET: {}'.format(sheet_title))
+
+
     # Read column headers until end or 2 consecutive skipped headers
     for header in headers:
         # LOGGER.info('header = {}'.format(json.dumps(header, indent=2, sort_keys=True)))
         column_index = i + 1
         column_letter = colnum_string(column_index)
         header_value = header.get('formattedValue')
-        if header_value: # NOT skipped
+        if header_value:  # if the column is NOT to be skipped
             column_is_skipped = False
             skipped = 0
             column_name = '{}'.format(header_value)
@@ -72,7 +85,6 @@ def get_sheet_schema_columns(sheet):
                     sheet_title, column_name, column_letter))
             header_list.append(column_name)
 
-            first_value = None
             try:
                 first_value = first_values[i]
             except IndexError as err:
@@ -83,13 +95,17 @@ def get_sheet_schema_columns(sheet):
                 pass
 
             column_effective_value = first_value.get('effectiveValue', {})
+            column_effective_value_type = None
 
             col_val = None
             if column_effective_value == {}:
-                column_effective_value_type = 'stringValue'
-                LOGGER.info('WARNING: NO VALUE IN 2ND ROW FOR HEADER. SHEET: {}, COL: {}, CELL: {}2.'.format(
-                    sheet_title, column_name, column_letter))
-                LOGGER.info('   Setting column datatype to STRING')
+                if "numberFormat" in first_value.get('effectiveFormat', {}):
+                    column_effective_value_type = "numberValue"
+                else:
+                    column_effective_value_type = 'stringValue'
+                    LOGGER.info('WARNING: NO VALUE IN 2ND ROW FOR HEADER. SHEET: {}, COL: {}, CELL: {}2.'.format(
+                        sheet_title, column_name, column_letter))
+                    LOGGER.info('   Setting column datatype to STRING')
             else:
                 for key, val in column_effective_value.items():
                     if key in ('numberValue', 'stringValue', 'boolValue'):
@@ -103,6 +119,7 @@ def get_sheet_schema_columns(sheet):
             column_number_format = first_values[i].get('effectiveFormat', {}).get(
                 'numberFormat', {})
             column_number_format_type = column_number_format.get('type')
+            column_number_format_pattern = column_number_format.get('pattern')
 
             # Determine datatype for sheet_json_schema
             #
@@ -114,18 +131,11 @@ def get_sheet_schema_columns(sheet):
             #   TIME, DATE_TIME, SCIENTIFIC
             #  https://developers.google.com/sheets/api/reference/rest/v4/spreadsheets/cells#NumberFormatType
             #
-            column_format = None # Default
-            if column_effective_value == {}:
-                col_properties = {'type': ['null', 'string']}
-                column_gs_type = 'stringValue'
-                LOGGER.info('WARNING: 2ND ROW VALUE IS BLANK: SHEET: {}, COL: {}, CELL: {}2'.format(
-                        sheet_title, column_name, column_letter))
-                LOGGER.info('   Setting column datatype to STRING')
-            elif column_effective_value_type == 'stringValue':
+            if column_effective_value_type == 'stringValue':
                 col_properties = {'type': ['null', 'string']}
                 column_gs_type = 'stringValue'
             elif column_effective_value_type == 'boolValue':
-                col_properties = {'type': ['null', 'boolean', 'string']}
+                col_properties = {'type': ['null', 'boolean']}
                 column_gs_type = 'boolValue'
             elif column_effective_value_type == 'numberValue':
                 if column_number_format_type == 'DATE_TIME':
@@ -149,9 +159,16 @@ def get_sheet_schema_columns(sheet):
                 elif column_number_format_type == 'TEXT':
                     col_properties = {'type': ['null', 'string']}
                     column_gs_type = 'stringValue'
-                else:
+                elif column_number_format_type == 'CURRENCY':
                     col_properties = {'type': ['null', 'number']}
                     column_gs_type = 'numberType'
+                else:
+                    if column_number_format_pattern == '0':
+                        col_properties = {'type': ['null', 'integer']}
+                        column_gs_type = 'numberType.INTEGER'
+                    else:
+                        col_properties = {'type': ['null', 'number']}
+                        column_gs_type = 'numberType'
             # Catch-all to deal with other types and set to string
             # column_effective_value_type: formulaValue, errorValue, or other
             else:
@@ -160,12 +177,13 @@ def get_sheet_schema_columns(sheet):
                 LOGGER.info('WARNING: UNSUPPORTED 2ND ROW VALUE: SHEET: {}, COL: {}, CELL: {}2, TYPE: {}, VALUE: {}'.format(
                         sheet_title, column_name, column_letter, column_effective_value_type, col_val))
                 LOGGER.info('Converting to string.')
-        else: # skipped
+        else: # if the column is to be skipped
             column_is_skipped = True
             skipped = skipped + 1
             column_index_str = str(column_index).zfill(2)
             column_name = '__sdc_skip_col_{}'.format(column_index_str)
-            col_properties = {'type': ['null', 'string']}
+            # unsupported field description if the field is to be skipped
+            col_properties = {'type': ['null', 'string'], 'description': 'Column is unsupported and would be skipped because header is not available'}
             column_gs_type = 'stringValue'
             LOGGER.info('WARNING: SKIPPED COLUMN; NO COLUMN HEADER. SHEET: {}, COL: {}, CELL: {}1'.format(
                 sheet_title, column_name, column_letter))
@@ -174,13 +192,20 @@ def get_sheet_schema_columns(sheet):
         if skipped >= 2:
             # skipped = 2 consecutive skipped headers
             # Remove prior_header column_name
+            # stop scanning the sheet and break
             sheet_json_schema['properties'].pop(prior_header, None)
+            # prior index is the index of the column prior to the currently column
+            prior_index = column_index - 1
+            # added a new boolean key `prior_column_skipped` to check if the column is one of the two columns with consecutive headers
+            # as due to consecutive empty headers both the columns should not be included in the schema as well as the metadata
+            columns[prior_index-1]['prior_column_skipped'] = True
             LOGGER.info('TWO CONSECUTIVE SKIPPED COLUMNS. STOPPING SCAN AT: SHEET: {}, COL: {}, CELL {}1'.format(
                 sheet_title, column_name, column_letter))
             break
 
         else:
-            column = {}
+            # skipped < 2 prepare `columns` dictionary with index, letter, column name, column type and
+            # if the column is to be skipped or not for each column in the list
             column = {
                 'columnIndex': column_index,
                 'columnLetter': column_letter,

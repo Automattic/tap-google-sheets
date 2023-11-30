@@ -304,6 +304,8 @@ def transform_sheet_data(spreadsheet_id, sheet_id, sheet_title, from_row, column
                             col_val = str(value)
                             LOGGER.info('WARNING: POSSIBLE DATA TYPE ERROR: SHEET: {}, COL: {}, CELL: {}{}, TYPE: {}, VALUE: {}'.format(
                                    sheet_title, col_name, col_letter, row_num, col_type, value))
+                    elif col_type == 'numberType.INTEGER':
+                        col_val = int(value)
                     # STRING
                     elif col_type == 'stringValue':
                         col_val = str(value)
