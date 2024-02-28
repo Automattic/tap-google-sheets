@@ -146,8 +146,7 @@ def get_data(stream_name,
              client,
              extra_params=None,
              **kwargs):
-    extra_params = extra_params or {}
-    params = endpoint_config.get('params', extra_params)
+    params = endpoint_config.get('params', {}) | (extra_params or {})
     LOGGER.info('GET {} params {}'.format(stream_name, params))
     time_extracted = utils.now()
     data = client.request(
