@@ -144,8 +144,10 @@ def get_selected_fields(catalog, stream_name):
 def get_data(stream_name,
              endpoint_config,
              client,
+             extra_params=None,
              **kwargs):
-    params = endpoint_config.get('params', {})
+    extra_params = extra_params or {}
+    params = endpoint_config.get('params', extra_params)
     LOGGER.info('GET {}'.format(stream_name))
     time_extracted = utils.now()
     data = client.request(
@@ -370,7 +372,8 @@ def sync(client, config, catalog, state):
     file_metadata, time_extracted = get_data(stream_name=stream_name,
                                              endpoint_config=file_metadata_config,
                                              client=client,
-                                             spreadsheet_id=spreadsheet_id)
+                                             spreadsheet_id=spreadsheet_id,
+                                             extra_params={'supportsAllDrives': 'true'})
     # Transform file_metadata
     LOGGER.info('Transform file_meatadata')
     file_metadata_tf = transform_file_metadata(file_metadata)
