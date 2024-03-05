@@ -185,12 +185,14 @@ class GoogleClient: # pylint: disable=too-many-instance-attributes
         LOGGER.debug('exiting google client')
 
     # Rate Limit: https://developers.google.com/sheets/api/limits
-    #   100 request per 100 seconds per User
+    #   60 request per 60 seconds per User
     @backoff.on_exception(backoff.expo,
                           (Server5xxError, ConnectionError, Server429Error),
-                          max_tries=7,
-                          factor=3)
-    @utils.ratelimit(100, 100)
+                          max_tries=5,
+                          jitter=backoff.random_jitter,
+                          max_time=64  # maximum_backoff in seconds (64 seconds)
+                          )
+    @utils.ratelimit(60, 60)
     def request(self, endpoint=None, params={}, **kwargs):
         formatted_params = {}
         for (key, value) in params.items():
