@@ -188,7 +188,7 @@ class GoogleClient: # pylint: disable=too-many-instance-attributes
     #   60 request per 60 seconds per User
     @backoff.on_exception(backoff.expo,
                           (Server5xxError, ConnectionError, Server429Error),
-                          max_tries=5,
+                          max_tries=7,
                           jitter=backoff.random_jitter,
                           max_time=64  # maximum_backoff in seconds (64 seconds)
                           )
