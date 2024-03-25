@@ -56,7 +56,7 @@ class TestNullCellFormat(unittest.TestCase):
             "format": "date-time"
         }
 
-        sheet_json_schema, columns = schema.get_sheet_schema_columns(sheet)
+        sheet_json_schema, columns = schema.get_sheet_schema_columns(sheet, config={})
         returned_formats = sheet_json_schema["properties"]["Column1"]
 
         # verify the returned schema has expected field types and format
@@ -78,7 +78,7 @@ class TestNullCellFormat(unittest.TestCase):
             "format": "date"
         }
 
-        sheet_json_schema, columns = schema.get_sheet_schema_columns(sheet)
+        sheet_json_schema, columns = schema.get_sheet_schema_columns(sheet, config={})
         returned_formats = sheet_json_schema["properties"]["Column1"]
 
         # verify the returned schema has expected field types and format
@@ -100,7 +100,7 @@ class TestNullCellFormat(unittest.TestCase):
             'format': 'time'
         }
 
-        sheet_json_schema, columns = schema.get_sheet_schema_columns(sheet)
+        sheet_json_schema, columns = schema.get_sheet_schema_columns(sheet, config={})
         returned_formats = sheet_json_schema["properties"]["Column1"]
 
         # verify the returned schema has expected field types and format
@@ -117,7 +117,7 @@ class TestNullCellFormat(unittest.TestCase):
 
         expected_format = {"type": ["null", "number"]}
 
-        sheet_json_schema, columns = schema.get_sheet_schema_columns(sheet)
+        sheet_json_schema, columns = schema.get_sheet_schema_columns(sheet, config={})
         returned_formats = sheet_json_schema["properties"]["Column1"]
 
         # verify returned schema has expected field types and format

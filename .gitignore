@@ -21,3 +21,5 @@ tap_google_sheets/.vscode/settings.json
 test_configuration.py
 tap_target_commands.sh
 secrets/*
+
+.env

@@ -82,6 +82,7 @@ You will need a Google developer project to use this tool. After [creating a pro
   - `credentials_file`: the path to a valid Google credentials file (Either an OAuth client secrets file or a Service Account key file)
   - `spreadsheet_id`: unique identifier for each spreadsheet in Google Drive
   - `start_date`: absolute minimum start date to check file modified
+  - `max_col_letter`: maximum column letter to check for data (default is automatically detected)
 
 ## Quick Start
 

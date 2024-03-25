@@ -72,6 +72,6 @@ class TestLogger(unittest.TestCase):
         }
         # retrieve the sheet title from the `sheet_data`
         sheet_title = sheet_data.get('properties', {}).get('title')
-        sheet_schema, columns = schema.get_sheet_schema_columns(sheet_data)
+        sheet_schema, columns = schema.get_sheet_schema_columns(sheet_data, config={})
         # check if the logger is called with correct logger message
         mocked_logger.assert_called_with('SKIPPING THE SHEET AS HEADERS ROW IS EMPTY. SHEET: {}'.format(sheet_title))
