@@ -14,7 +14,7 @@ LOGGER = singer.get_logger()
 # https://github.com/singer-io/getting-started/blob/master/docs/DISCOVERY_MODE.md#Metadata
 
 # Convert column index to column letter
-def colnum_string(num):
+def column_string(num):
     string = ""
     while num > 0:
         num, remainder = divmod(num - 1, 26)
@@ -75,7 +75,7 @@ def get_sheet_schema_columns(sheet: dict, config: dict):
     for header in headers:
         # LOGGER.info('header = {}'.format(json.dumps(header, indent=2, sort_keys=True)))
         column_index = i + 1
-        column_letter = colnum_string(column_index)
+        column_letter = column_string(column_index)
         if config.get('max_col_letter') and column_letter > config.get('max_col_letter'):
             break
         header_value = header.get('formattedValue')
