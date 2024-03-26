@@ -1,10 +1,11 @@
 from singer.catalog import Catalog, CatalogEntry, Schema
 
 from tap_google_sheets import GoogleClient
+from tap_google_sheets.config import Config
 from tap_google_sheets.schema import get_schemas, STREAMS
 
 
-def discover(client: GoogleClient, config: dict):
+def discover(client: GoogleClient, config: Config):
     schemas, field_metadata = get_schemas(client, config)
     catalog = Catalog([])
 

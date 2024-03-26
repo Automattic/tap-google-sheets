@@ -6,6 +6,7 @@ import sys
 import singer
 
 from tap_google_sheets.client import GoogleClient
+from tap_google_sheets.config import Config
 from tap_google_sheets.discover import discover
 from tap_google_sheets.sync import sync
 
@@ -17,7 +18,7 @@ REQUIRED_CONFIG_KEYS = [
     'start_date'
 ]
 
-def do_discover(client: GoogleClient, config: dict):
+def do_discover(client: GoogleClient, config: Config):
 
     LOGGER.info('Starting discover')
     catalog = discover(client, config)

@@ -6,6 +6,7 @@ import singer
 from singer import metadata
 
 from tap_google_sheets import GoogleClient
+from tap_google_sheets.config import Config
 from tap_google_sheets.streams import STREAMS
 
 LOGGER = singer.get_logger()
@@ -28,7 +29,7 @@ def pad_default_effective_values(headers, first_values):
 
 
 # Create sheet_metadata_json with columns from sheet
-def get_sheet_schema_columns(sheet: dict, config: dict):
+def get_sheet_schema_columns(sheet: dict, config: Config):
     sheet_title = sheet.get('properties', {}).get('title')
     data = next(iter(sheet.get('data', [])), {})
     row_data = data.get('rowData', [])
@@ -230,7 +231,7 @@ def get_sheet_schema_columns(sheet: dict, config: dict):
 #   endpoint: spreadsheets/{spreadsheet_id}
 #   params: includeGridData = true, ranges = '{sheet_title}'!1:2
 # This endpoint includes detailed metadata about each cell - incl. data type, formatting, etc.
-def get_sheet_metadata(sheet: dict, client: GoogleClient, config: dict):
+def get_sheet_metadata(sheet: dict, client: GoogleClient, config: Config):
     sheet_id = sheet.get('properties', {}).get('sheetId')
     sheet_title = sheet.get('properties', {}).get('title')
     LOGGER.info('sheet_id = {}, sheet_title = {}'.format(sheet_id, sheet_title))
@@ -261,7 +262,7 @@ def get_sheet_metadata(sheet: dict, client: GoogleClient, config: dict):
 def get_abs_path(path):
     return os.path.join(os.path.dirname(os.path.realpath(__file__)), path)
 
-def get_schemas(client: GoogleClient, config: dict):
+def get_schemas(client: GoogleClient, config: Config):
     schemas = {}
     field_metadata = {}
 
