@@ -424,7 +424,7 @@ def sync(client, config, catalog, state):
             sheet_id = sheet.get('properties', {}).get('sheetId')
 
             # GET sheet_metadata and columns
-            sheet_schema, columns = get_sheet_metadata(sheet, spreadsheet_id, client)
+            sheet_schema, columns = get_sheet_metadata(sheet, client, config)
             # LOGGER.info('sheet_schema: {}'.format(sheet_schema))
 
             # SKIP empty sheets (where sheet_schema and columns are None)

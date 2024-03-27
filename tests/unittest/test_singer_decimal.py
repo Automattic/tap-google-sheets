@@ -84,7 +84,7 @@ class TestUnsupportedFields(unittest.TestCase):
                 'b': {'type': ['null', 'number']},
             }
         }
-        sheet_json_schema, columns = schema.get_sheet_schema_columns(sheet)
+        sheet_json_schema, columns = schema.get_sheet_schema_columns(sheet, config={})
         self.assertEqual(sheet_json_schema, expected_schema) # test the schema is as expected
         self.assertEqual(columns, expected_columns) # test if the columns is as expected
 
@@ -204,7 +204,7 @@ class TestUnsupportedFields(unittest.TestCase):
                 'c': {'type': ['null', 'number']},
             }
         }
-        sheet_json_schema, columns = schema.get_sheet_schema_columns(sheet)
+        sheet_json_schema, columns = schema.get_sheet_schema_columns(sheet, config={})
         self.assertEqual(sheet_json_schema, expected_schema) # test the schema is as expected
         self.assertEqual(columns, expected_columns) # test if the columns is as expected
 

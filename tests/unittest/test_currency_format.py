@@ -60,7 +60,7 @@ class TestNullCellFormat(unittest.TestCase):
         sheet = SHEET
         expected_format = {"type": ["null", "number"]}
 
-        sheet_json_schema, columns = schema.get_sheet_schema_columns(sheet)
+        sheet_json_schema, columns = schema.get_sheet_schema_columns(sheet, config={})
         print(sheet_json_schema)
         returned_formats = sheet_json_schema["properties"]["Column1"]
 

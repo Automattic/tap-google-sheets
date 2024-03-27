@@ -5,6 +5,8 @@ from collections import OrderedDict
 import singer
 from singer import metadata
 
+from tap_google_sheets import GoogleClient
+from tap_google_sheets.config import Config
 from tap_google_sheets.streams import STREAMS
 
 LOGGER = singer.get_logger()
@@ -13,7 +15,7 @@ LOGGER = singer.get_logger()
 # https://github.com/singer-io/getting-started/blob/master/docs/DISCOVERY_MODE.md#Metadata
 
 # Convert column index to column letter
-def colnum_string(num):
+def column_string(num):
     string = ""
     while num > 0:
         num, remainder = divmod(num - 1, 26)
@@ -27,7 +29,7 @@ def pad_default_effective_values(headers, first_values):
 
 
 # Create sheet_metadata_json with columns from sheet
-def get_sheet_schema_columns(sheet):
+def get_sheet_schema_columns(sheet: dict, config: Config):
     sheet_title = sheet.get('properties', {}).get('title')
     data = next(iter(sheet.get('data', [])), {})
     row_data = data.get('rowData', [])
@@ -74,7 +76,9 @@ def get_sheet_schema_columns(sheet):
     for header in headers:
         # LOGGER.info('header = {}'.format(json.dumps(header, indent=2, sort_keys=True)))
         column_index = i + 1
-        column_letter = colnum_string(column_index)
+        column_letter = column_string(column_index)
+        if config.get('max_col_letter') and column_letter > config.get('max_col_letter'):
+            break
         header_value = header.get('formattedValue')
         if header_value:  # if the column is NOT to be skipped
             column_is_skipped = False
@@ -227,7 +231,7 @@ def get_sheet_schema_columns(sheet):
 #   endpoint: spreadsheets/{spreadsheet_id}
 #   params: includeGridData = true, ranges = '{sheet_title}'!1:2
 # This endpoint includes detailed metadata about each cell - incl. data type, formatting, etc.
-def get_sheet_metadata(sheet, spreadsheet_id, client):
+def get_sheet_metadata(sheet: dict, client: GoogleClient, config: Config):
     sheet_id = sheet.get('properties', {}).get('sheetId')
     sheet_title = sheet.get('properties', {}).get('title')
     LOGGER.info('sheet_id = {}, sheet_title = {}'.format(sheet_id, sheet_title))
@@ -238,7 +242,7 @@ def get_sheet_metadata(sheet, spreadsheet_id, client):
 
     # GET sheet_metadata
     sheet_md_results = client.request(endpoint=stream_name,
-                                      spreadsheet_id=spreadsheet_id,
+                                      spreadsheet_id=config.get('spreadsheet_id'),
                                       sheet_title=sheet_title,
                                       params=params)
     # sheet_metadata: 1st `sheets` node in results
@@ -246,7 +250,7 @@ def get_sheet_metadata(sheet, spreadsheet_id, client):
 
     # Create sheet_json_schema (for discovery/catalog) and columns (for sheet_metadata results)
     try:
-        sheet_json_schema, columns = get_sheet_schema_columns(sheet_metadata)
+        sheet_json_schema, columns = get_sheet_schema_columns(sheet_metadata, config)
     except Exception as err:
         LOGGER.warning('{}'.format(err))
         LOGGER.warning('SKIPPING Malformed sheet: {}'.format(sheet_title))
@@ -258,7 +262,7 @@ def get_sheet_metadata(sheet, spreadsheet_id, client):
 def get_abs_path(path):
     return os.path.join(os.path.dirname(os.path.realpath(__file__)), path)
 
-def get_schemas(client, spreadsheet_id):
+def get_schemas(client: GoogleClient, config: Config):
     schemas = {}
     field_metadata = {}
 
@@ -286,7 +290,7 @@ def get_schemas(client, spreadsheet_id):
 
             # GET spreadsheet_metadata, which incl. sheets (basic metadata for each worksheet)
             spreadsheet_md_results = client.request(endpoint=stream_name,
-                                                    spreadsheet_id=spreadsheet_id,
+                                                    spreadsheet_id=config.get('spreadsheet_id'),
                                                     params=params)
 
             sheets = spreadsheet_md_results.get('sheets', [])
@@ -294,7 +298,7 @@ def get_schemas(client, spreadsheet_id):
             # Loop thru each worksheet in spreadsheet
             for sheet in sheets:
                 # GET sheet_json_schema for each worksheet (from function above)
-                sheet_json_schema, columns = get_sheet_metadata(sheet, spreadsheet_id, client)
+                sheet_json_schema, columns = get_sheet_metadata(sheet, client, config)
 
                 # SKIP empty sheets (where sheet_json_schema and columns are None)
                 if sheet_json_schema and columns:

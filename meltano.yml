@@ -1,0 +1,33 @@
+version: 1
+default_environment: prod
+environments:
+- name: prod
+plugins:
+  extractors:
+  - name: tap-google-sheets
+    namespace: tap-google-sheets
+    pip_url: -e .
+    executable: tap-google-sheets
+    capabilities:
+    - catalog
+    - discover
+    - state
+    settings:
+    - name: spreadsheet_id
+      label: Spreadsheet ID
+      description: Unique identifier for each spreadsheet in Google Drive
+    - name: credentials_file
+      label: Credential File
+      description: The path to a valid Google credentials file (Either an OAuth client
+        secrets file or a Service Account key file)
+    - name: start_date
+      kind: date_iso8601
+      label: Start Date
+      description: absolute minimum start date to check file modified
+    - name: max_col_letter
+      label: Max Column Letter
+      description: The maximum column letter to check for data
+  loaders:
+  - name: target-parquet
+    variant: automattic
+    pip_url: git+https://github.com/Automattic/target-parquet.git

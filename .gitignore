@@ -20,4 +20,8 @@ tap_google_sheets/.vscode/settings.json
 .DS_Store
 test_configuration.py
 tap_target_commands.sh
-secrets/*
+/secrets/*
+
+.env
+/output/**/*
+/.meltano/
