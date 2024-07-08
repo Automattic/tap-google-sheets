@@ -190,7 +190,7 @@ class GoogleClient: # pylint: disable=too-many-instance-attributes
                           (Server5xxError, ConnectionError, Server429Error),
                           max_tries=10,
                           jitter=backoff.random_jitter,
-                          max_time=300
+                          max_time=500
                           )
     @utils.ratelimit(60, 60)
     def request(self, endpoint=None, params={}, **kwargs):
