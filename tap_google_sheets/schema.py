@@ -313,7 +313,7 @@ def get_schemas(client: GoogleClient, config: Config):
                             replication_method='FULL_TABLE'
                         )
                         field_metadata[sheet_title] = sheet_mdata
-                except Exception as err:
-                    LOGGER.warning(f'Error while trying to discover the schema of {sheet}: \n{err}')
+                except Exception as e:
+                    LOGGER.warning(f'Error while trying to discover the schema of {sheet}: \n{e}')
 
     return schemas, field_metadata
