@@ -298,19 +298,22 @@ def get_schemas(client: GoogleClient, config: Config):
             # Loop thru each worksheet in spreadsheet
             for sheet in sheets:
                 # GET sheet_json_schema for each worksheet (from function above)
-                sheet_json_schema, columns = get_sheet_metadata(sheet, client, config)
+                try:
+                    sheet_json_schema, columns = get_sheet_metadata(sheet, client, config)
 
-                # SKIP empty sheets (where sheet_json_schema and columns are None)
-                if sheet_json_schema and columns:
-                    sheet_title = sheet.get('properties', {}).get('title')
-                    schemas[sheet_title] = sheet_json_schema
-                    sheet_mdata = metadata.new()
-                    sheet_mdata = metadata.get_standard_metadata(
-                        schema=sheet_json_schema,
-                        key_properties=['__sdc_row'],
-                        valid_replication_keys=None,
-                        replication_method='FULL_TABLE'
-                    )
-                    field_metadata[sheet_title] = sheet_mdata
+                    # SKIP empty sheets (where sheet_json_schema and columns are None)
+                    if sheet_json_schema and columns:
+                        sheet_title = sheet.get('properties', {}).get('title')
+                        schemas[sheet_title] = sheet_json_schema
+                        sheet_mdata = metadata.new()
+                        sheet_mdata = metadata.get_standard_metadata(
+                            schema=sheet_json_schema,
+                            key_properties=['__sdc_row'],
+                            valid_replication_keys=None,
+                            replication_method='FULL_TABLE'
+                        )
+                        field_metadata[sheet_title] = sheet_mdata
+                except Exception as err:
+                    LOGGER.warning(f'Error while trying to discover the schema of {sheet}: \n{err}')
 
     return schemas, field_metadata
