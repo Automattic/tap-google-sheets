@@ -423,9 +423,14 @@ def sync(client, config, catalog, state):
             sheet_title = sheet.get('properties', {}).get('title')
             sheet_id = sheet.get('properties', {}).get('sheetId')
 
-            # GET sheet_metadata and columns
-            sheet_schema, columns = get_sheet_metadata(sheet, client, config)
-            # LOGGER.info('sheet_schema: {}'.format(sheet_schema))
+            try:
+                # GET sheet_metadata and columns
+                sheet_schema, columns = get_sheet_metadata(sheet, client, config)
+                # LOGGER.info('sheet_schema: {}'.format(sheet_schema))
+            except Exception as e:
+                LOGGER.warning(f'Error while trying to discover the metadata of {sheet}: \n{e}')
+                sheet_schema = None
+                columns = None
 
             # SKIP empty sheets (where sheet_schema and columns are None)
             if not sheet_schema or not columns:
