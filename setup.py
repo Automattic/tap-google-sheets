@@ -3,12 +3,13 @@
 from setuptools import setup, find_packages
 
 setup(name='tap-google-sheets',
-      version='1.1.2',
+      version='1.1.3',
       description='Singer.io tap for extracting data from the Google Sheets v4 API',
       author='jeff.huth@bytecode.io',
       classifiers=['Programming Language :: Python :: 3 :: Only'],
       py_modules=['tap_google_sheets'],
       install_requires=[
+          'httplib2==0.22.0',  # new 0.30.0 ignores proxy settings
           'singer-python==5.13.0',
           'google-api-python-client==2.104.0',
           'google-auth-oauthlib==1.1.0',
