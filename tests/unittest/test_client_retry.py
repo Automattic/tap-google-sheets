@@ -220,3 +220,4 @@ class TestClientRetry(unittest.TestCase):
             with self.assertRaises(HttpError):
                 self.request_sheet_values(client)
             self.assertEqual(timer.tags[client_module.metrics.Tag.http_status_code], 404)
+    
