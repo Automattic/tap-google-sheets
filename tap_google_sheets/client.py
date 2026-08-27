@@ -2,7 +2,6 @@ import json
 import os
 import pickle
 
-import backoff
 import googleapiclient.discovery
 import singer
 from google.auth.transport.requests import Request
@@ -14,12 +13,12 @@ from singer import utils
 
 LOGGER = singer.get_logger()
 
-class Server5xxError(Exception):
-    pass
-
-
-class Server429Error(Exception):
-    pass
+# Number of retries handed to googleapiclient's HttpRequest.execute(). The client
+# retries with a randomized exponential backoff (sleep = random() * 2 ** attempt)
+# on 5xx and 429 responses, 403 rate-limit responses, socket timeouts, SSL errors,
+# connection errors and DNS failures. 7 retries gives a worst-case total sleep of
+# ~4 minutes, which comfortably covers the 60 seconds rate-limit window.
+NUM_RETRIES = 7
 
 
 class GoogleError(Exception):
@@ -186,12 +185,6 @@ class GoogleClient: # pylint: disable=too-many-instance-attributes
 
     # Rate Limit: https://developers.google.com/sheets/api/limits
     #   60 request per 60 seconds per User
-    @backoff.on_exception(backoff.expo,
-                          (Server5xxError, ConnectionError, TimeoutError, Server429Error),
-                          max_tries=10,
-                          jitter=backoff.random_jitter,
-                          max_time=300
-                          )
     @utils.ratelimit(60, 60)
     def request(self, endpoint=None, params={}, **kwargs):
         formatted_params = {}
@@ -214,29 +207,14 @@ class GoogleClient: # pylint: disable=too-many-instance-attributes
             raise Exception('{} not implemented yet!'.format(endpoint))
 
         with metrics.http_request_timer(endpoint) as timer:
-            error = None
-            status_code = 400
-
             try:
-                # num_retries enables googleapiclient's built-in retry (with
-                # backoff) on socket timeouts, ssl errors and 5xx responses
-                response = request.execute(num_retries=3)
-                status_code = 200
+                # Retries (with backoff) are handled by googleapiclient, see NUM_RETRIES.
+                # Once retries are exhausted the last error is raised: HttpError for
+                # non-2xx responses, the original exception for transport errors.
+                response = request.execute(num_retries=NUM_RETRIES)
             except HttpError as e:
-                status_code = e.resp.status or status_code
-                error = e
-
-            timer.tags[metrics.Tag.http_status_code] = status_code
-
-        if status_code >= 500:
-            raise Server5xxError()
-
-        # Use retry functionality in backoff to wait and retry if
-        # response code equals 429 because rate limit has been exceeded
-        if status_code == 429:
-            raise Server429Error()
-
-        if status_code != 200:
-            raise error
+                timer.tags[metrics.Tag.http_status_code] = e.resp.status
+                raise
+            timer.tags[metrics.Tag.http_status_code] = 200
 
         return response
