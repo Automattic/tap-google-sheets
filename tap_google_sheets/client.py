@@ -187,7 +187,7 @@ class GoogleClient: # pylint: disable=too-many-instance-attributes
     # Rate Limit: https://developers.google.com/sheets/api/limits
     #   60 request per 60 seconds per User
     @backoff.on_exception(backoff.expo,
-                          (Server5xxError, ConnectionError, Server429Error),
+                          (Server5xxError, ConnectionError, TimeoutError, Server429Error),
                           max_tries=10,
                           jitter=backoff.random_jitter,
                           max_time=300
@@ -218,7 +218,9 @@ class GoogleClient: # pylint: disable=too-many-instance-attributes
             status_code = 400
 
             try:
-                response = request.execute()
+                # num_retries enables googleapiclient's built-in retry (with
+                # backoff) on socket timeouts, ssl errors and 5xx responses
+                response = request.execute(num_retries=3)
                 status_code = 200
             except HttpError as e:
                 status_code = e.resp.status or status_code
