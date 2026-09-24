@@ -1,6 +1,8 @@
 import json
 import os
 import pickle
+import random
+import time
 
 import googleapiclient.discovery
 import singer
@@ -16,9 +18,22 @@ LOGGER = singer.get_logger()
 # Number of retries handed to googleapiclient's HttpRequest.execute(). The client
 # retries with a randomized exponential backoff (sleep = random() * 2 ** attempt)
 # on 5xx and 429 responses, 403 rate-limit responses, socket timeouts, SSL errors,
-# connection errors and DNS failures. 7 retries gives a worst-case total sleep of
-# ~4 minutes, which comfortably covers the 60 seconds rate-limit window.
+# connection errors and DNS failures.
 NUM_RETRIES = 7
+
+# Google enforces the Sheets read quota ("Read requests per minute per user") over
+# a 60 seconds window, and every retry counts against it. googleapiclient's
+# randomized backoff regularly spends all NUM_RETRIES inside that same window
+# (observed totals: ~50s and ~80s), so once it gives up on a 429 we wait a full
+# window out explicitly, with a little jitter, before trying again.
+RATE_LIMIT_WINDOW_SECONDS = 60
+RATE_LIMIT_MAX_JITTER_SECONDS = 5
+RATE_LIMIT_MAX_WAITS = 3
+HTTP_TOO_MANY_REQUESTS = 429
+
+# Read requests per minute allowed to this client. Google's limit is 60 per user
+# per minute; keep headroom for retries and anything else using the same account.
+REQUESTS_PER_MINUTE = 50
 
 
 class GoogleError(Exception):
@@ -185,7 +200,7 @@ class GoogleClient: # pylint: disable=too-many-instance-attributes
 
     # Rate Limit: https://developers.google.com/sheets/api/limits
     #   60 request per 60 seconds per User
-    @utils.ratelimit(60, 60)
+    @utils.ratelimit(REQUESTS_PER_MINUTE, 60)
     def request(self, endpoint=None, params={}, **kwargs):
         formatted_params = {}
         for (key, value) in params.items():
@@ -207,14 +222,24 @@ class GoogleClient: # pylint: disable=too-many-instance-attributes
             raise Exception('{} not implemented yet!'.format(endpoint))
 
         with metrics.http_request_timer(endpoint) as timer:
-            try:
-                # Retries (with backoff) are handled by googleapiclient, see NUM_RETRIES.
-                # Once retries are exhausted the last error is raised: HttpError for
-                # non-2xx responses, the original exception for transport errors.
-                response = request.execute(num_retries=NUM_RETRIES)
-            except HttpError as e:
-                timer.tags[metrics.Tag.http_status_code] = e.resp.status
-                raise
+            for rate_limit_waits in range(RATE_LIMIT_MAX_WAITS + 1):
+                try:
+                    # Retries (with backoff) are handled by googleapiclient, see NUM_RETRIES.
+                    # Once retries are exhausted the last error is raised: HttpError for
+                    # non-2xx responses, the original exception for transport errors.
+                    response = request.execute(num_retries=NUM_RETRIES)
+                    break
+                except HttpError as e:
+                    if e.resp.status != HTTP_TOO_MANY_REQUESTS \
+                            or rate_limit_waits == RATE_LIMIT_MAX_WAITS:
+                        timer.tags[metrics.Tag.http_status_code] = e.resp.status
+                        raise
+                    wait = RATE_LIMIT_WINDOW_SECONDS + random.uniform(0, RATE_LIMIT_MAX_JITTER_SECONDS)
+                    LOGGER.warning(
+                        'Rate limit (HTTP 429) still exceeded after %d retries for %s; '
+                        'waiting %.1f seconds for the quota window to reset (%d of %d)',
+                        NUM_RETRIES, endpoint, wait, rate_limit_waits + 1, RATE_LIMIT_MAX_WAITS)
+                    time.sleep(wait)
             timer.tags[metrics.Tag.http_status_code] = 200
 
         return response

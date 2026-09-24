@@ -83,6 +83,7 @@ You will need a Google developer project to use this tool. After [creating a pro
   - `spreadsheet_id`: unique identifier for each spreadsheet in Google Drive
   - `start_date`: absolute minimum start date to check file modified
   - `max_col_letter`: maximum column letter to check for data (default is automatically detected)
+  - `batch_rows`: rows fetched per Sheets API request while syncing a sheet (default `5000`). The API quota is 60 read requests per minute per user, counted per request rather than per row, so lower this only for sheets with very wide or text-heavy rows.
 
 ## Quick Start
 
