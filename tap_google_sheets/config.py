@@ -6,3 +6,4 @@ class Config(TypedDict):
     spreadsheet_id: str
     start_date: str
     max_col_letter: str
+    batch_rows: int

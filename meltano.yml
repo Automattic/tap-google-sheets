@@ -27,6 +27,10 @@ plugins:
     - name: max_col_letter
       label: Max Column Letter
       description: The maximum column letter to check for data
+    - name: batch_rows
+      kind: integer
+      label: Batch Rows
+      description: Rows fetched per Sheets API request while syncing a sheet (default 5000)
   loaders:
   - name: target-parquet
     variant: automattic

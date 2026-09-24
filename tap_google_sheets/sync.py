@@ -14,6 +14,12 @@ from tap_google_sheets.streams import STREAMS
 
 LOGGER = singer.get_logger()
 
+# Rows fetched per spreadsheets.values.get call. The Sheets API counts quota per
+# request, not per row, and documents no range size limit (only a ~2 MB payload
+# recommendation), so fewer, larger pages keep big sheets well under the
+# 60 read requests per minute quota. Override with the `batch_rows` config key.
+DEFAULT_BATCH_ROWS = 5000
+
 
 def write_schema(catalog, stream_name):
     stream = catalog.get_stream(stream_name)
@@ -345,9 +351,18 @@ def transform_sheet_data(spreadsheet_id, sheet_id, sheet_title, from_row, column
     return sheet_data_tf, row_num
 
 
+def get_batch_rows(config):
+    batch_rows = config.get('batch_rows')
+    batch_rows = DEFAULT_BATCH_ROWS if batch_rows in (None, '') else int(batch_rows)
+    if batch_rows < 1:
+        raise ValueError('batch_rows must be a positive integer, got {}'.format(batch_rows))
+    return batch_rows
+
+
 def sync(client, config, catalog, state):
     start_date = config.get('start_date')
     spreadsheet_id = config.get('spreadsheet_id')
+    batch_rows = get_batch_rows(config)
 
     # Get selected_streams from catalog, based on state last_stream
     #   last_stream = Previous currently synced stream, if the load was interrupted
@@ -477,14 +492,13 @@ def sync(client, config, catalog, state):
 
                     # Initialize paging for 1st batch
                     is_last_row = False
-                    batch_rows = 200
                     from_row = 2
                     if sheet_max_row < batch_rows:
                         to_row = sheet_max_row
                     else:
                         to_row = batch_rows
 
-                    # Loop thru batches (each having 200 rows of data)
+                    # Loop thru batches (each having batch_rows rows of data)
                     while not is_last_row and from_row < sheet_max_row and to_row <= sheet_max_row:
                         range_rows = 'A{}:{}{}'.format(from_row, sheet_last_col_letter, to_row)
 

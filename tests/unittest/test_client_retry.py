@@ -9,7 +9,9 @@ import httplib2
 from googleapiclient.errors import HttpError
 
 from tap_google_sheets import client as client_module
-from tap_google_sheets.client import GoogleClient, NUM_RETRIES
+from tap_google_sheets.client import (
+    GoogleClient, NUM_RETRIES, RATE_LIMIT_MAX_JITTER_SECONDS, RATE_LIMIT_MAX_WAITS,
+    RATE_LIMIT_WINDOW_SECONDS)
 
 
 class FakeHttp:
@@ -55,6 +57,11 @@ class TestClientRetry(unittest.TestCase):
         sleep_patcher = mock.patch('time.sleep')
         self.sleep = sleep_patcher.start()
         self.addCleanup(sleep_patcher.stop)
+        # googleapiclient sleeps random() * 2 ** attempt (up to 128s at attempt 7); pin it
+        # to 0 so quota-window waits (>= 60s) are distinguishable from backoff sleeps.
+        random_patcher = mock.patch('random.random', return_value=0.0)
+        random_patcher.start()
+        self.addCleanup(random_patcher.stop)
 
     def make_client(self, sheets_outcomes=(), drive_outcomes=()):
         self.sheets_http = FakeHttp(sheets_outcomes)
@@ -205,6 +212,48 @@ class TestClientRetry(unittest.TestCase):
             self.request_sheet_values(client)
         self.assertEqual([c.args[0] for c in self.sleep.call_args_list], [2, 4, 8])
 
+    # --- Rate limit (429) quota window ---------------------------------------------------
+
+    RATE_LIMITED = (429, error_body(429, 'rateLimitExceeded'))
+
+    def quota_waits(self):
+        """Sleeps long enough to be a quota-window wait rather than googleapiclient backoff."""
+        return [c.args[0] for c in self.sleep.call_args_list if c.args[0] >= RATE_LIMIT_WINDOW_SECONDS]
+
+    def test_429_waits_out_quota_window_after_retries_exhausted(self):
+        client = self.make_client(
+            sheets_outcomes=[self.RATE_LIMITED] * (NUM_RETRIES + 1) + [(200, OK_BODY)])
+        self.assertEqual(self.request_sheet_values(client), OK_BODY)
+        self.assertEqual(len(self.sheets_http.calls), NUM_RETRIES + 2)
+        waits = self.quota_waits()
+        self.assertEqual(len(waits), 1)
+        self.assertLessEqual(waits[0], RATE_LIMIT_WINDOW_SECONDS + RATE_LIMIT_MAX_JITTER_SECONDS)
+
+    def test_429_quota_wait_repeats_across_windows(self):
+        attempts_per_window = NUM_RETRIES + 1
+        client = self.make_client(
+            sheets_outcomes=[self.RATE_LIMITED] * (attempts_per_window * 2) + [(200, OK_BODY)])
+        self.assertEqual(self.request_sheet_values(client), OK_BODY)
+        self.assertEqual(len(self.sheets_http.calls), attempts_per_window * 2 + 1)
+        self.assertEqual(len(self.quota_waits()), 2)
+
+    def test_persistent_429_raises_after_quota_waits_exhausted(self):
+        attempts_per_window = NUM_RETRIES + 1
+        total_attempts = attempts_per_window * (RATE_LIMIT_MAX_WAITS + 1)
+        client = self.make_client(sheets_outcomes=[self.RATE_LIMITED] * total_attempts)
+        with self.assertRaises(HttpError) as ctx:
+            self.request_sheet_values(client)
+        self.assertEqual(ctx.exception.resp.status, 429)
+        self.assertEqual(len(self.sheets_http.calls), total_attempts)
+        self.assertEqual(len(self.quota_waits()), RATE_LIMIT_MAX_WAITS)
+
+    def test_non_429_error_does_not_wait_for_quota_window(self):
+        client = self.make_client(
+            sheets_outcomes=[(503, error_body(503, 'backendError'))] * (NUM_RETRIES + 1))
+        with self.assertRaises(HttpError):
+            self.request_sheet_values(client)
+        self.assertEqual(self.quota_waits(), [])
+
     # --- Metrics --------------------------------------------------------------------------
 
     def test_http_status_code_metric_tag(self):
@@ -220,4 +269,9 @@ class TestClientRetry(unittest.TestCase):
             with self.assertRaises(HttpError):
                 self.request_sheet_values(client)
             self.assertEqual(timer.tags[client_module.metrics.Tag.http_status_code], 404)
-    
+
+            client = self.make_client(
+                sheets_outcomes=[self.RATE_LIMITED] * ((NUM_RETRIES + 1) * (RATE_LIMIT_MAX_WAITS + 1)))
+            with self.assertRaises(HttpError):
+                self.request_sheet_values(client)
+            self.assertEqual(timer.tags[client_module.metrics.Tag.http_status_code], 429)
